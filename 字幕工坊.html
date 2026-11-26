@@ -1,0 +1,1459 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>字幕工坊 — 视频字幕 · 配音 · 背景音乐</title>
+<style>
+  :root{
+    --bg:#131417; --card:#1d1f24; --card2:#24262c; --line:#33363e;
+    --txt:#e8eaee; --dim:#9aa0ab; --acc:#4f8cff; --acc2:#38b26e; --warn:#e2a63d; --err:#e05a5a;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--bg);color:var(--txt);font-family:"Microsoft YaHei","Noto Sans SC",system-ui,sans-serif;font-size:14px;height:100vh;display:flex;flex-direction:column;overflow:hidden}
+  header{display:flex;align-items:center;gap:14px;padding:10px 16px;background:var(--card);border-bottom:1px solid var(--line);flex-shrink:0}
+  header .logo{font-weight:700;font-size:16px;letter-spacing:1px}
+  header .logo b{color:var(--acc)}
+  .btn{background:var(--card2);border:1px solid var(--line);color:var(--txt);padding:6px 12px;border-radius:6px;cursor:pointer;font-size:13px;font-family:inherit;white-space:nowrap}
+  .btn:hover{border-color:var(--acc);color:#fff}
+  .btn:disabled{opacity:.4;cursor:not-allowed}
+  .btn.primary{background:var(--acc);border-color:var(--acc);color:#fff;font-weight:600}
+  .btn.primary:hover{filter:brightness(1.1)}
+  #btnAddSub{
+    background:linear-gradient(135deg,#ff8a3d,#ff5f2e);border:1px solid #ff7a35;color:#fff;
+    font-size:15.5px;font-weight:700;padding:10px 22px;border-radius:8px;
+    box-shadow:0 2px 12px rgba(255,106,61,.45);
+    animation:subPulse 2s ease-in-out infinite;
+  }
+  #btnAddSub:hover{filter:brightness(1.12);box-shadow:0 3px 18px rgba(255,106,61,.65)}
+  #btnAddSub:disabled{animation:none;opacity:.35;box-shadow:none}
+  @keyframes subPulse{
+    0%,100%{box-shadow:0 2px 12px rgba(255,106,61,.35)}
+    50%{box-shadow:0 3px 22px rgba(255,106,61,.75)}
+  }
+  .btn.rec{background:var(--err);border-color:var(--err);color:#fff;font-weight:600}
+  .btn.green{background:var(--acc2);border-color:var(--acc2);color:#fff;font-weight:600}
+  .btn.sm{padding:3px 8px;font-size:12px;border-radius:5px}
+  main{flex:1;display:flex;min-height:0}
+  #stage{flex:1.6;display:flex;flex-direction:column;min-width:0;padding:14px;gap:10px}
+  #playerWrap{position:relative;flex:1;background:#000;border-radius:10px;overflow:hidden;min-height:0;display:flex;align-items:center;justify-content:center}
+  #video{max-width:100%;max-height:100%;display:none}
+  #emptyHint{color:var(--dim);text-align:center;line-height:2;font-size:15px}
+  #emptyHint b{color:var(--txt)}
+  #subOverlay{position:absolute;left:6%;right:6%;bottom:7%;text-align:center;color:#fff;font-weight:600;
+    text-shadow:0 0 4px rgba(0,0,0,.9),0 2px 6px rgba(0,0,0,.8),0 0 2px #000;pointer-events:none;line-height:1.4;word-break:break-all}
+  #transport{display:flex;align-items:center;gap:10px;flex-shrink:0}
+  #timeLabel{color:var(--dim);font-variant-numeric:tabular-nums;min-width:130px}
+  #timeline{flex-shrink:0}
+  #tlTrack{position:relative;height:66px;background:var(--card);border:1px solid var(--line);border-radius:8px;cursor:crosshair;overflow:hidden}
+  .blk{position:absolute;top:6px;height:26px;background:#2b4a7d;border:1px solid #4f8cff;border-radius:5px;color:#dce8ff;
+    font-size:11px;line-height:24px;padding:0 6px;overflow:hidden;white-space:nowrap;cursor:grab;user-select:none}
+  .blk.sel{background:#4f8cff;color:#fff}
+  .nblk{position:absolute;top:38px;height:22px;background:#3d5a35;border:1px solid #6fae5a;border-radius:5px;color:#e2f2d9;
+    font-size:11px;line-height:20px;padding:0 6px;overflow:hidden;white-space:nowrap;cursor:grab;user-select:none}
+  #tlPlayhead{position:absolute;top:0;bottom:0;width:2px;background:#ff5566;pointer-events:none;z-index:5}
+  #tlRuler{display:flex;justify-content:space-between;color:var(--dim);font-size:11px;padding:3px 2px;font-variant-numeric:tabular-nums}
+  #panel{width:330px;flex-shrink:0;border-left:1px solid var(--line);background:var(--card);padding:12px;display:flex;flex-direction:column;min-height:0}
+  #panelScroll{flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:12px;min-height:0;padding-right:2px}
+  #exportBar{flex-shrink:0;border:1px solid var(--line);background:var(--card2);border-radius:10px;padding:12px;margin-top:10px;max-height:58%;overflow-y:auto}
+  #exportBar h3{margin-bottom:6px}
+  #exportBar .row{margin-top:0;margin-bottom:8px}
+  #btnExport{width:100%;padding:12px;font-size:15px;border-radius:8px;letter-spacing:1px;margin-top:4px}
+  #btnExport:hover{filter:brightness(1.12)}
+  #btnExport:disabled{filter:none}
+  .card{background:var(--card2);border:1px solid var(--line);border-radius:10px;padding:12px}
+  .card h3{font-size:14px;margin-bottom:8px;color:#fff}
+  .card h3 .tag{font-size:11px;color:var(--dim);font-weight:400;margin-left:6px}
+  .row{display:flex;align-items:center;gap:8px;margin-top:8px;flex-wrap:wrap}
+  .row label{color:var(--dim);font-size:12px;flex-shrink:0}
+  select,input[type=text],input[type=number]{background:var(--card);border:1px solid var(--line);color:var(--txt);
+    border-radius:6px;padding:5px 8px;font-size:13px;font-family:inherit}
+  select{flex:1;min-width:0}
+  input[type=range]{flex:1;accent-color:var(--acc)}
+  input[type=checkbox]{accent-color:var(--acc)}
+  .note{color:var(--dim);font-size:11.5px;line-height:1.6;margin-top:8px}
+  .explog{font-size:12px;color:var(--dim);padding:4px 0;border-top:1px dashed var(--line);line-height:1.5}
+  .explog b{color:var(--txt);font-weight:600}
+  .explog:first-child{border-top:none}
+  .hint{color:var(--warn);font-size:11.5px;line-height:1.6;margin-top:6px}
+  #subListWrap{height:230px;flex-shrink:0;display:flex;flex-direction:column;padding:0 14px 14px}
+  #subListWrap h3{font-size:14px;margin-bottom:6px;flex-shrink:0}
+  #subList{flex:1;overflow-y:auto;background:var(--card);border:1px solid var(--line);border-radius:8px;padding:6px}
+  .subrow{display:flex;align-items:center;gap:6px;padding:4px 6px;border-radius:6px;margin-bottom:4px}
+  .subrow.sel{background:#2b4a7d}
+  .subrow .idx{color:var(--dim);font-size:12px;width:20px;text-align:center;flex-shrink:0}
+  .subrow input[type=number]{width:74px;font-variant-numeric:tabular-nums}
+  .subrow input[type=text]{flex:1;min-width:0}
+  #narrList{margin-top:8px}
+  .nrow{display:flex;align-items:center;gap:8px;padding:4px 0;font-size:12.5px}
+  .nrow .nm{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .nrow .tm{color:var(--dim);font-variant-numeric:tabular-nums}
+  .modalMask{position:fixed;inset:0;background:rgba(0,0,0,.6);display:none;align-items:center;justify-content:center;z-index:50}
+  .modalMask.show{display:flex}
+  .modal{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:22px;width:420px}
+  .modal h4{margin-bottom:10px;font-size:15px}
+  .modal .mtxt{color:var(--dim);font-size:12.5px;line-height:1.6;margin-bottom:12px;word-break:break-all}
+  #helpMask .modal{width:680px;max-width:94vw;max-height:84vh;overflow-y:auto}
+  #helpMask h4{font-size:17px;margin-bottom:4px}
+  .helpSec{margin-bottom:15px}
+  .helpSec .t{display:block;font-size:13.5px;color:var(--acc);margin-bottom:5px;font-weight:700}
+  .helpSec div{font-size:12.5px;color:var(--dim);line-height:1.75}
+  .helpSec div b{color:var(--fg)}
+  #helpVer{text-align:center;color:var(--dim);font-size:11px;margin-top:4px}
+  .pbarWrap{height:10px;background:var(--card2);border-radius:5px;overflow:hidden;margin-bottom:14px}
+  .pbar{height:100%;background:var(--acc);width:0%;transition:width .2s}
+  #toast{position:fixed;bottom:26px;left:50%;transform:translateX(-50%);background:#2a2d34;border:1px solid var(--line);
+    padding:10px 18px;border-radius:8px;font-size:13px;display:none;z-index:99;max-width:70vw}
+  ::-webkit-scrollbar{width:8px;height:8px}
+  ::-webkit-scrollbar-thumb{background:#3a3d45;border-radius:4px}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">🎬 字幕<b>工坊</b><span id="verBadge" style="margin-left:8px;font-size:11px;color:#fff;background:#e6483d;border-radius:8px;padding:1px 7px;vertical-align:middle;font-weight:700">v3.7</span></div>
+  <input type="file" id="fileVideo" accept="video/*" style="display:none">
+  <button class="btn primary" id="btnLoad">📂 载入视频</button>
+  <button class="btn" id="btnHelp">❓ 使用说明</button>
+  <a class="btn" id="btnPkg" href="download.html" style="text-decoration:none;display:none">⬇ 完整版下载</a>
+  <span id="fileLabel" style="color:var(--dim);font-size:12.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1">未载入视频</span>
+</header>
+
+<main>
+  <section id="stage">
+    <div id="playerWrap">
+      <video id="video" playsinline></video>
+      <canvas id="posterCanvas" style="position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);max-width:100%;max-height:100%;display:none;z-index:5"></canvas>
+      <div id="subOverlay"></div>
+      <div id="emptyHint">
+        <b>① 载入一个视频</b>（左上角按钮）<br>
+        ② 点时间轴任意位置或「插入字幕」→ 输入字幕文本<br>
+        ③ TTS 配音入轨 / 麦克风录旁白 / 添加背景音乐<br>
+        ④ 点「导出成片」，字幕与声音直接烧录进视频
+      </div>
+    </div>
+    <div id="transport">
+      <button class="btn" id="btnPlay" disabled>▶ 播放</button>
+      <span id="timeLabel">00:00.0 / 00:00.0</span>
+      <button class="btn primary" id="btnAddSub" disabled>＋ 在当前画面插入字幕</button>
+      <button class="btn sm" id="btnPrevSub" disabled>⏮ 上一句</button>
+      <button class="btn sm" id="btnNextSub" disabled>⏭ 下一句</button>
+    </div>
+    <div id="timeline">
+      <div id="tlTrack"><div id="tlPlayhead"></div></div>
+      <div id="tlRuler"><span>00:00</span><span>25%</span><span>50%</span><span>75%</span><span>100%</span></div>
+    </div>
+    <div id="subListWrap">
+      <h3>字幕列表 <span style="color:var(--dim);font-size:12px;font-weight:400">（点行定位 · 拖时间轴色块移动 · 修改即刻生效）</span>
+        <span style="float:right;display:flex;gap:6px">
+          <button class="btn sm" id="btnSubTXT" disabled>📋 复制文案</button>
+          <button class="btn sm" id="btnSubSRT" disabled>⬇ 导出 SRT</button>
+          <button class="btn sm" id="btnSubImport" disabled>⬆ 导入 SRT</button>
+          <input type="file" id="srtFile" accept=".srt,.txt" style="display:none">
+        </span>
+      </h3>
+      <div id="subList"><div style="color:var(--dim);padding:14px;font-size:13px">还没有字幕。播放到想要的位置，点「＋ 在当前画面插入字幕」。</div></div>
+    </div>
+  </section>
+
+  <aside id="panel">
+    <div id="panelScroll">
+    <div class="card">
+      <h3>🎨 字幕样式<span class="tag">预览与导出同步生效</span></h3>
+      <div class="row"><label style="flex:0 0 40px">模板</label>
+        <select id="subStyleSel" style="flex:1;min-width:0">
+          <option value="classic">经典白字黑边</option>
+          <option value="yellow">黄色醒目</option>
+          <option value="cartoon">卡通粗描边</option>
+          <option value="box">蓝底半透明条</option>
+          <option value="minimal">极简白字</option>
+        </select>
+      </div>
+      <div class="row"><label style="flex:0 0 40px">字号</label>
+        <input type="range" id="subSize" min="60" max="160" step="5" value="100" style="flex:1">
+        <span id="subSizeVal" style="color:var(--dim);font-size:12px;min-width:36px;text-align:right">100%</span>
+      </div>
+    </div>
+    <div class="card">
+      <h3>🗣 字幕配音（TTS）<span class="tag">浏览器语音合成</span></h3>
+      <div class="row"><label>语音</label><select id="voiceSel"></select></div>
+      <div class="row"><label>语速</label>
+        <select id="rateSel" style="flex:0 0 90px">
+          <option value="0.8">0.8×</option><option value="1" selected>1.0×</option>
+          <option value="1.2">1.2×</option><option value="1.5">1.5×</option>
+        </select>
+        <button class="btn sm" id="btnTTSView" disabled>🔊 试听当前字幕</button>
+      </div>
+      <div class="row"><button class="btn green" id="btnTTSRender" disabled>🎙 把全部字幕生成配音并铺到轨道</button></div>
+      <div class="hint">一键把全部字幕逐句合成配音、自动铺到每条字幕的起点。<b>推荐先启动「本地配音助手」</b>：双击工具所在文件夹里的 <b>启动配音服务.bat</b>，黑色窗口保持开着即可（本地合成，速度快、无需联网）。上方「🔊 试听」使用系统语音直接朗读（仅试听用，无法录制）。</div>
+    </div>
+
+    <div class="card">
+      <h3>🤖 AI 配音<span class="tag">本地助手优先 · 双通道</span></h3>
+      <div class="row"><label>音色</label><select id="aiVoiceSel" style="flex:1;min-width:0">
+        <option value="zh-CN-YunxiNeural">云希 · 男声·少年感（讲故事）</option>
+        <option value="zh-CN-XiaoxiaoNeural">晓晓 · 女声·温暖（讲故事）</option>
+        <option value="zh-CN-XiaoyiNeural">晓伊 · 女声·活泼</option>
+        <option value="zh-CN-YunjianNeural">云健 · 男声·浑厚</option>
+        <option value="zh-CN-YunyangNeural">云扬 · 男声·播音腔</option>
+        <option value="zh-CN-YunxiaNeural">云夏 · 童声</option>
+        <option value="zh-CN-liaoning-XiaobeiNeural">晓北 · 东北口音女声</option>
+        <option value="zh-HK-HiuMaanNeural">曉曼 · 粤语女声</option>
+        <option value="zh-TW-HsiaoChenNeural">曉臻 · 台湾女声</option>
+        <option value="en-US-AriaNeural">Aria · English female</option>
+        <option value="ja-JP-NanamiNeural">七海 · 日本語 female</option>
+      </select></div>
+      <div class="row"><label>语速</label>
+        <select id="aiRateSel" style="flex:0 0 90px">
+          <option value="-20%">0.8×</option><option value="-8%" selected>0.9×</option>
+          <option value="+0%">1.0×</option><option value="+10%">1.1×</option><option value="+20%">1.2×</option>
+        </select>
+        <button class="btn sm" id="btnAIView" disabled>🤖 AI 试听当前字幕</button>
+      </div>
+      <div class="row"><button class="btn green" id="btnAIRender" disabled>🤖 把全部字幕 AI 配音并铺到轨道</button></div>
+      <div class="hint">微软 Edge 在线语音引擎逐句合成、自动铺到字幕起点。<b>双通道保障</b>：①本地配音助手（双击 <b>启动配音服务.bat</b> 启动，本地合成不联网，最稳最快）②浏览器直连微软（需联网，部分网络会失败）。两条都不通时，可用「📂 导入配音文件」导入外部生成的音频。</div>
+    </div>
+
+    <div class="card">
+      <h3>🎚 成片配音选择<span class="tag">决定导出用哪一路</span></h3>
+      <div class="row"><label>配音来源</label><select id="narrPickSel" style="flex:1;min-width:0">
+        <option value="all">全部配音（所有途径一起用）</option>
+        <option value="tts">🎙 仅 TTS 配音（本地助手逐句合成）</option>
+        <option value="ai">🤖 仅 AI 配音（微软语音逐句合成）</option>
+        <option value="import">📂 仅导入的配音文件</option>
+        <option value="mic">🎤 仅麦克风旁白录音</option>
+      </select></div>
+      <div class="hint" id="narrPickHint">当前未生成任何配音。生成或导入配音后，这里会自动显示各途径的数量；选中某一路后，预览和导出成片只使用该路的配音。</div>
+    </div>
+
+    <div class="card">
+      <h3>🎤 旁白录音<span class="tag">麦克风</span></h3>
+      <div class="row"><button class="btn" id="btnMic" disabled>● 从当前时刻开始录制</button><span id="micState" style="color:var(--dim);font-size:12px"></span></div>
+      <div class="note">点「开始录制」后视频继续播放，对着麦克风说话即可；点「停止」后录音自动挂到开始时刻。适合跟画面口播。</div>
+      <div class="row" style="margin-top:8px">
+        <button class="btn green" id="btnNarrImport" disabled>📂 导入配音音频文件</button>
+      </div>
+      <input type="file" id="fileNarr" accept="audio/*" multiple style="display:none">
+      <div class="note">导入配音<b>不依赖任何网络与录音，百分百可靠</b>，是导出无声时最稳的选择。可一次选多个音频（wav/mp3/m4a/webm）。<b>文件名以秒数开头</b>会自动定位到该时刻（如 <b>6.9_开场.wav</b> → 6.9 秒处），否则放在当前播放位置；之后可在下方列表微调。</div>
+      <div id="narrList"></div>
+    </div>
+
+    <div class="card">
+      <h3>🎵 背景音乐<span class="tag">本地音频文件</span></h3>
+      <input type="file" id="fileBgm" accept="audio/*" style="display:none">
+      <div class="row"><button class="btn" id="btnBgm">📂 选择音乐文件</button><span id="bgmName" style="color:var(--dim);font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1">未添加</span></div>
+      <div class="row" id="bgmCtl" style="display:none">
+        <label>音量</label><input type="range" id="bgmVol" min="0" max="100" value="35">
+        <button class="btn sm" id="btnBgmDel">移除</button>
+      </div>
+      <div class="note">音乐自动循环播放，导出时结尾自动淡出。</div>
+    </div>
+
+    <div class="card">
+      <h3>💡 小贴士</h3>
+      <div class="note">
+        · 字幕文本、时间会按视频文件名自动保存在本机，重新打开同一视频自动恢复。<br>
+        · 配音与旁白是临时音频，刷新页面后需重新生成。<br>
+        · 快捷键：空格 = 播放/暂停。
+      </div>
+    </div>
+    </div>
+
+    <div id="exportBar">
+      <h3>⬇ 导出设置</h3>
+      <div class="row"><label>文件名</label><input type="text" id="expName" style="flex:1;min-width:0" placeholder="自动使用视频文件名"></div>
+      <div class="row"><label>位置</label><select id="dirSel" style="flex:1;min-width:0"></select></div>
+      <div class="row"><label><input type="checkbox" id="chkBurn" checked> 烧录字幕进画面</label>&nbsp;&nbsp;<label><input type="checkbox" id="chkKeepSub" checked> 导出声音（配音/旁白/音乐）</label></div>
+      <div id="expList"></div>
+      <div class="note" style="margin-top:4px">实时录制：片长多久录多久，请保持本页面在前台。优先输出 MP4（需较新的 Chrome/Edge），否则自动改 WebM。</div>
+      <button class="btn green" id="btnExport" disabled>⬇ 导出成片（字幕+配音烧录）</button>
+    </div>
+  </aside>
+</main>
+
+<div class="modalMask" id="modalMask">
+  <div class="modal">
+    <h4 id="mTitle">处理中…</h4>
+    <div class="mtxt" id="mText"></div>
+    <div class="pbarWrap"><div class="pbar" id="mBar"></div></div>
+    <div class="row" style="justify-content:flex-end"><button class="btn" id="mCancel" style="display:none">取消导出</button></div>
+  </div>
+</div>
+<div class="modalMask" id="helpMask">
+  <div class="modal">
+    <h4>📖 字幕工坊 · 使用说明</h4>
+    <div class="helpSec"><span class="t">🚀 四步做出一条成片</span>
+      <div>
+        <b>① 载入视频</b>：点左上角「📂 载入视频」，或把视频文件直接拖进页面。<br>
+        <b>② 插入字幕</b>：播放到想要的位置，点「＋ 在当前画面插入字幕」；也可先点时间轴任意位置定位再插入。<br>
+        <b>③ 配音</b>：右侧面板三种途径任选（见下方「三种配音途径」），还可以加背景音乐。<br>
+        <b>④ 导出成片</b>：右下角「⬇ 导出成片」，字幕与配音直接烧录进视频，得到一个新文件。
+      </div>
+    </div>
+    <div class="helpSec"><span class="t">🗺 操作流程图</span>
+      <svg viewBox="0 0 636 250" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:auto;display:block;background:#1a1c20;border:1px solid #33363e;border-radius:10px;font-family:'Microsoft YaHei','Segoe UI',sans-serif">
+        <defs>
+          <marker id="arw" markerWidth="7" markerHeight="7" refX="5.5" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6 Z" fill="#9aa0ab"/></marker>
+        </defs>
+        <!-- 主流程四个节点 -->
+        <rect x="10" y="16" width="130" height="50" rx="10" fill="#24262c" stroke="#4f8cff" stroke-width="1.5"/>
+        <text x="75" y="37" text-anchor="middle" font-size="13" font-weight="700" fill="#e8eaee">📂 载入视频</text>
+        <text x="75" y="54" text-anchor="middle" font-size="10.5" fill="#9aa0ab">拖文件进来或点左上角</text>
+        <rect x="185" y="16" width="130" height="50" rx="10" fill="#24262c" stroke="#4f8cff" stroke-width="1.5"/>
+        <text x="250" y="37" text-anchor="middle" font-size="13" font-weight="700" fill="#e8eaee">＋ 插入字幕</text>
+        <text x="250" y="54" text-anchor="middle" font-size="10.5" fill="#9aa0ab">定位画面后输入文本</text>
+        <rect x="360" y="16" width="130" height="50" rx="10" fill="#24262c" stroke="#4f8cff" stroke-width="1.5"/>
+        <text x="425" y="37" text-anchor="middle" font-size="13" font-weight="700" fill="#e8eaee">🎙 生成配音</text>
+        <text x="425" y="54" text-anchor="middle" font-size="10.5" fill="#9aa0ab">三种途径任选其一</text>
+        <rect x="506" y="16" width="120" height="50" rx="10" fill="#24262c" stroke="#38b26e" stroke-width="1.5"/>
+        <text x="566" y="37" text-anchor="middle" font-size="13" font-weight="700" fill="#e8eaee">⬇ 导出成片</text>
+        <text x="566" y="54" text-anchor="middle" font-size="10.5" fill="#9aa0ab">字幕配音直接烧录</text>
+        <line x1="143" y1="41" x2="181" y2="41" stroke="#9aa0ab" stroke-width="1.5" marker-end="url(#arw)"/>
+        <line x1="318" y1="41" x2="356" y2="41" stroke="#9aa0ab" stroke-width="1.5" marker-end="url(#arw)"/>
+        <line x1="493" y1="41" x2="502" y2="41" stroke="#9aa0ab" stroke-width="1.5" marker-end="url(#arw)"/>
+        <!-- 配音三分支 -->
+        <path d="M425,66 V88" fill="none" stroke="#9aa0ab" stroke-width="1.5"/>
+        <line x1="85" y1="88" x2="465" y2="88" stroke="#9aa0ab" stroke-width="1.5"/>
+        <line x1="85" y1="88" x2="85" y2="96" stroke="#9aa0ab" stroke-width="1.5" marker-end="url(#arw)"/>
+        <line x1="318" y1="88" x2="318" y2="96" stroke="#9aa0ab" stroke-width="1.5" marker-end="url(#arw)"/>
+        <line x1="465" y1="88" x2="465" y2="96" stroke="#9aa0ab" stroke-width="1.5" marker-end="url(#arw)"/>
+        <rect x="10" y="100" width="150" height="44" rx="9" fill="#1d1f24" stroke="#33363e"/>
+        <text x="85" y="126" text-anchor="middle" font-size="12" fill="#c9ced8">🗣 TTS 配音 · 本地助手</text>
+        <rect x="243" y="100" width="150" height="44" rx="9" fill="#1d1f24" stroke="#33363e"/>
+        <text x="318" y="126" text-anchor="middle" font-size="12" fill="#c9ced8">🤖 AI 配音 · 微软语音</text>
+        <rect x="390" y="100" width="150" height="44" rx="9" fill="#1d1f24" stroke="#33363e"/>
+        <text x="465" y="126" text-anchor="middle" font-size="12" fill="#c9ced8">🎤 麦克风录音 · 导入配音</text>
+        <!-- 汇合到成片配音选择 -->
+        <path d="M85,144 V168 H465 V144" fill="none" stroke="#9aa0ab" stroke-width="1.5"/>
+        <line x1="318" y1="168" x2="318" y2="181" stroke="#9aa0ab" stroke-width="1.5" marker-end="url(#arw)"/>
+        <rect x="178" y="185" width="280" height="46" rx="10" fill="#24262c" stroke="#e2a63d" stroke-width="1.5"/>
+        <text x="318" y="204" text-anchor="middle" font-size="13" font-weight="700" fill="#e8eaee">🎚 成片配音选择</text>
+        <text x="318" y="222" text-anchor="middle" font-size="10.5" fill="#9aa0ab">导出用哪一路，由你指定</text>
+        <!-- 回到导出 -->
+        <path d="M458,208 H580 V76" fill="none" stroke="#9aa0ab" stroke-width="1.5" marker-end="url(#arw)"/>
+        <text x="600" y="150" text-anchor="middle" font-size="10.5" fill="#9aa0ab">选好配音</text>
+        <text x="600" y="164" text-anchor="middle" font-size="10.5" fill="#9aa0ab">去导出</text>
+      </svg>
+    </div>
+    <div class="helpSec"><span class="t">💬 字幕操作</span>
+      <div>
+        字幕列表里可直接改文本和时间，<b>修改即刻生效</b>；拖时间轴上的色块可整体移动一条字幕。<br>
+        右上角「⬆ 导入 SRT」可批量载入字幕文件，「⬇ 导出 SRT / 📋 复制文案」可分享给别人。<br>
+        「🎨 字幕样式」提供 5 套模板 + 字号 60%~160%，预览与导出同步生效。
+      </div>
+    </div>
+    <div class="helpSec"><span class="t">🎙 三种配音途径（右侧面板从上到下）</span>
+      <div>
+        <b>🗣 字幕配音（TTS）</b>：推荐先双击工具文件夹里的「启动配音服务.bat」启动本地配音助手，黑色小窗口保持开着即可，速度快、无需联网。<br>
+        <b>🤖 AI 配音</b>：本地助手优先，失败时自动改走微软在线语音（需联网），有 11 种音色可选。<br>
+        <b>🎤 旁白录音 / 📂 导入配音文件</b>：录音适合跟画面口播；导入文件<b>百分百可靠</b>，文件名以秒数开头会自动定位到该时刻（如 6.9_开场.wav → 6.9 秒处）。<br>
+        <b>🎚 成片配音选择</b>：导出前可指定成片用哪一路配音——全部 / 仅 TTS / 仅 AI / 仅导入文件 / 仅麦克风录音。
+      </div>
+    </div>
+    <div class="helpSec"><span class="t">🎵 背景音乐</span>
+      <div>选择本地音频文件即可，自动循环播放，导出时结尾自动淡出，音量随时可调。</div>
+    </div>
+    <div class="helpSec"><span class="t">⬇ 导出须知</span>
+      <div>
+        导出采用<b>实时录制</b>：片长多久录多久，请保持本页面在前台不要切走。<br>
+        优先输出 MP4（需较新的 Chrome/Edge 浏览器），不支持时自动改用 WebM。<br>
+        字幕文本和时间会按视频文件名<b>自动保存在本机</b>，重新打开同一视频自动恢复；配音是临时音频，刷新页面后需重新生成。
+      </div>
+    </div>
+    <div class="helpSec"><span class="t">⌨ 快捷键</span>
+      <div><b>空格键</b> = 播放 / 暂停（输入框打字时不会误触发）。</div>
+    </div>
+    <div class="helpSec"><span class="t">❓ 常见问题</span>
+      <div>
+        · 视频开头是黑场？工具已自动抓取 0.5 秒处的画面作为封面首帧，点播放会从头开始。<br>
+        · TTS / AI 配音一直失败？先确认「启动配音服务.bat」的黑色窗口还开着；实在不行就用「📂 导入配音文件」，最稳。<br>
+        · 视频加载失败？换 <b>mp4（H.264）</b>格式兼容性最好。<br>
+        · 导出的视频没有声音？检查右下角「导出声音」是否勾选，以及「🎚 成片配音选择」里选的途径有没有配音。
+      </div>
+    </div>
+    <div class="row" style="justify-content:flex-end;margin-top:6px"><button class="btn primary" id="helpClose">我知道了</button></div>
+    <div id="helpVer"></div>
+  </div>
+</div>
+<div id="toast"></div>
+<canvas id="expCanvas" style="display:none"></canvas>
+
+<script>
+'use strict';
+const $=s=>document.querySelector(s);
+const video=$('#video'), overlay=$('#subOverlay'), tlTrack=$('#tlTrack'), playhead=$('#tlPlayhead');
+const poster=$('#posterCanvas');
+const dbg=null;
+function dlog(msg){/* 调试已移除，保留空函数以兼容旧调用点 */}
+// 首帧海报生命周期：新载入时隐藏；开始播放时海报让位给真实画面
+video.addEventListener('play',()=>{poster.style.display='none';});
+const state={subs:[],narrs:[],bgm:null,bgmVol:.35,sel:null,voices:[],voiceURI:null,rate:1,
+  duration:0,fileName:'',exporting:false,cancelExport:false,expRec:null,rec:null,micStream:null,recStart:0,
+  narrPick:'all',
+  subStyle:{preset:'classic',size:100}};
+let actx=null,vSource=null,vGain=null,curShown=null;
+
+/* ---------- utils ---------- */
+const uid=()=>Date.now()+Math.random();
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+const fmt=t=>{t=Math.max(0,t||0);const m=Math.floor(t/60),s=t-m*60;return String(m).padStart(2,'0')+':'+(s<10?'0':'')+s.toFixed(1);};
+const trunc=(s,n)=>s.length>n?s.slice(0,n)+'…':s;
+function toast(msg,ms=3200){const t=$('#toast');t.textContent=msg;t.style.display='block';clearTimeout(t._h);t._h=setTimeout(()=>t.style.display='none',ms);}
+function ensureCtx(){
+  if(!actx){
+    actx=new (window.AudioContext||window.webkitAudioContext)();
+    actx.onstatechange=()=>{ // 被挂起且视频在播 → 立刻尝试唤醒
+      if(actx.state==='suspended'&&!video.paused&&!state.exporting){try{actx.resume()}catch(e){}}
+    };
+  }
+  if(actx.state==='suspended')actx.resume();return actx;
+}
+function bufRMS(b){const d=b.getChannelData(0);let s=0;const step=Math.max(1,Math.floor(d.length/20000));let n=0;for(let i=0;i<d.length;i+=step){s+=d[i]*d[i];n++;}return Math.sqrt(s/n);}
+
+/* ---------- video load ---------- */
+$('#btnLoad').onclick=()=>$('#fileVideo').click();
+const APP_VER='v3.7';
+document.title='字幕工坊 '+APP_VER;
+$('#verBadge').textContent=APP_VER;
+// 完整版下载入口：仅网页版（http/https）显示，本地 file:// 打开时隐藏
+if(location.protocol!=='file:'){try{$('#btnPkg').style.display='';}catch(e){}}
+// 全局错误显示：任何脚本异常直接弹提示，不再无声无息
+window.addEventListener('error',e=>{try{dlog('脚本错误: '+e.message+' 第'+e.lineno+'行');toast('⚠️ 页面脚本错误：'+e.message+'（第'+e.lineno+'行）',6000);}catch(_){}});
+// 统一的载入流程：按钮选择 与 拖拽导入 共用
+function loadVideoFile(f){
+  if(!f)return;
+  dlog('选择文件 '+f.name+' '+Math.round(f.size/1024)+'KB');
+  toast('1️⃣ 已选择文件：'+f.name+'，开始读取…',3000);
+  video.preload='auto';
+  poster.style.display='none';
+  video.src=URL.createObjectURL(f);video.style.display='block';$('#emptyHint').style.display='none';
+  dlog('src 已设置，等待元数据…');
+  video.onerror=()=>{clearTimeout(loadWatch);dlog('onerror! err='+(video.error?video.error.code:'?'));toast('❌ 视频加载失败：浏览器不支持该格式（请用 mp4/H.264 或 webm）',5000);};
+  const loadWatch=setTimeout(()=>{if(!state.duration){dlog('8s 超时 rs='+video.readyState);toast('⚠️ 视频读取缓慢或失败：大文件请稍候；长时间无响应请换 mp4/H.264 格式试试',6000);}},8000);
+  const announce=ok=>{
+    dlog('结果 '+(ok?'成功':'失败')+' rs='+video.readyState+' vW='+video.videoWidth);
+    if(ok){
+      toast('✅ 视频加载成功：'+f.name+'（'+fmt(video.duration)+'）',4200);
+    }
+    else toast('⚠️ 已读取视频信息，但首帧尚未渲染 —— 点一次播放即可正常',4600);
+  };
+  // 强制渲染第一帧：canvas 海报首选，rVFC/play-pause 兜底；数据无论何时就绪都补画
+  const showFirst=()=>{
+    toast('3️⃣ 渲染第一帧…',1800);
+    let done=false,posterShown=false;
+    const finish=ok=>{if(done)return;done=true;announce(ok);};
+    // 关键：很多视频开头是黑场淡入（实测本例第0帧亮度仅16/255），
+    // 抓 0.5 秒处的画面做海报才有内容；播放仍从头开始
+    try{video.currentTime=Math.min(0.5,video.duration||0.5);}catch(err){}
+    // 首选：把当前帧画到 canvas 海报上（不依赖浏览器对视频元素的绘制行为，必然出图）
+    const drawPoster=()=>{
+      try{
+        if(!video.videoWidth)return false;
+        poster.width=video.videoWidth;poster.height=video.videoHeight;
+        poster.getContext('2d').drawImage(video,0,0);
+        poster.style.display='block';
+        return true;
+      }catch(e){return false;}
+    };
+    const tryDraw=()=>{
+      // 关键：画海报不受失败锁定限制 —— 数据无论何时就绪，都补画海报（幂等）
+      if(video.readyState<2)return;
+      if(done&&posterShown)return;
+      if(drawPoster()){
+        if(!posterShown){
+          posterShown=true;dlog('海报绘制成功 '+video.videoWidth+'x'+video.videoHeight+' @'+video.currentTime.toFixed(2)+'s');
+          try{video.currentTime=0;}catch(e){}
+          finish(true);
+        }
+      }else if(!done)dlog('绘制尝试失败 rs='+video.readyState);
+    };
+    if(video.readyState>=2)tryDraw();
+    else{video.oncanplay=tryDraw;video.onloadeddata=tryDraw;}
+    // 备用：rVFC 帧回调 + play→pause 促使解码器出帧
+    if(typeof video.requestVideoFrameCallback==='function'){
+      try{video.requestVideoFrameCallback(tryDraw);}catch(e){}
+    }
+    try{
+      const p=video.play();
+      if(p&&p.then){
+        p.then(()=>{video.pause();try{video.currentTime=0.001;}catch(e){}}).catch(()=>{});
+        if(p.finally)p.finally(()=>setTimeout(tryDraw,400));
+      }
+    }catch(e){}
+    // 主动轮询 readyState：某些环境事件不触发，直接盯数据状态（数据一到立刻画海报）
+    const poll=setInterval(()=>{if(video.readyState>=2)tryDraw();},150);
+    setTimeout(()=>clearInterval(poll),6000);
+    // 1.5s 只是中途检查：数据没到就继续等（poll 仍在跑），不急着判失败
+    setTimeout(()=>{
+      if(!done&&video.readyState<2)dlog('1.5s 数据未就绪 rs='+video.readyState+'，继续等待…');
+    },1500);
+    // 6s 最终兜底：仍无画面才判定失败（期间海报一旦画出即成功）
+    setTimeout(()=>{
+      if(done)return;
+      const ok=drawPoster()||video.readyState>=2;
+      if(!ok&&!video.videoWidth)
+        toast('⚠️ 首帧未能自动渲染 [诊断 rs='+video.readyState+' ns='+video.networkState+' err='+(video.error?video.error.code:0)+'] —— 点一次播放即可正常观看',6500);
+      finish(ok);
+    },6000);
+  };
+  video.onloadedmetadata=()=>{
+    clearTimeout(loadWatch);
+    dlog('元数据就绪 时长='+video.duration.toFixed(2)+' rs='+video.readyState+' 分辨率='+video.videoWidth+'x'+video.videoHeight);
+    toast('2️⃣ 元数据就绪（时长 '+fmt(video.duration)+'），出图…',2200);
+    state.duration=video.duration;state.fileName=f.name;
+    $('#fileLabel').textContent=f.name+'  ·  '+fmt(video.duration);
+    ['btnPlay','btnAddSub','btnPrevSub','btnNextSub','btnExport','btnMic','btnTTSRender','btnTTSView','btnNarrImport','btnAIRender','btnAIView','btnSubSRT','btnSubTXT','btnSubImport'].forEach(id=>$('#'+id).disabled=false);
+    state.subs=[];state.narrs=[];state.sel=null;
+    $('#expName').value=f.name.replace(/\.[^.]+$/,'')+'-字幕配音版';
+    // 历史恢复与界面渲染包上保护：任何异常都不许挡住首帧流程
+    try{restore(f.name);}catch(e){dlog('restore 异常: '+e.message);}
+    try{renderTimeline();renderSubList();}catch(e){dlog('render 异常: '+e.message);}
+    // 首帧流程无条件启动：不再依赖 loadeddata 事件是否触发
+    showFirst();
+  };
+}
+$('#fileVideo').onchange=e=>{const f=e.target.files[0];e.target.value='';loadVideoFile(f);};
+// 拖拽视频进窗口即可载入（之前拖拽无任何反应）
+document.addEventListener('dragover',e=>{e.preventDefault();},false);
+document.addEventListener('drop',e=>{
+  e.preventDefault();
+  const f=e.dataTransfer&&e.dataTransfer.files&&e.dataTransfer.files[0];
+  if(!f)return;
+  if(f.type&&f.type.startsWith('video')||/\.(mp4|webm|mov|m4v|mkv|avi)$/i.test(f.name))loadVideoFile(f);
+  else toast('⚠️ 请拖入视频文件（mp4/webm 等）',3600);
+},false);
+
+/* ---------- 字幕样式模板（预览与导出共用一套定义） ----------
+   注意：必须声明在主循环之前，否则主循环同步首帧访问 SUB_PRESETS 会触发
+   const 暂时性死区（TDZ）错误，导致整个脚本崩溃、后半部分功能全部失联 */
+const SUB_PRESETS={
+  classic:{fill:'#fff',stroke:'rgba(0,0,0,.85)',sw:.10},
+  yellow:{fill:'#ffd93d',stroke:'rgba(0,0,0,.9)',sw:.09},
+  cartoon:{fill:'#fff6d8',stroke:'rgba(96,48,0,.95)',sw:.18},
+  box:{fill:'#fff',stroke:null,sw:0,box:'rgba(24,48,96,.66)'},
+  minimal:{fill:'#fff',stroke:null,sw:0,shadow:'0 1px 4px rgba(0,0,0,.55)'}
+};
+$('#subStyleSel').onchange=e=>{state.subStyle.preset=e.target.value;save();curShown=null;};
+$('#subSize').oninput=e=>{state.subStyle.size=+e.target.value;$('#subSizeVal').textContent=e.target.value+'%';save();};
+
+/* ---------- main loop ---------- */
+function activeSub(t){return state.subs.find(s=>t>=s.start&&t<s.end);}
+(function loop(){
+  requestAnimationFrame(loop);
+  try{
+  const t=video.currentTime||0;
+  $('#timeLabel').textContent=fmt(t)+' / '+fmt(state.duration);
+  playhead.style.left=(state.duration?t/state.duration*100:0)+'%';
+  const s=activeSub(t);
+  if(s!==curShown){
+    curShown=s;overlay.textContent=s?s.text:'';
+    const p=SUB_PRESETS[state.subStyle.preset]||SUB_PRESETS.classic;
+    overlay.style.color=p.fill;
+    if(p.box){overlay.style.background=p.box;overlay.style.padding='2px 12px';overlay.style.borderRadius='10px';overlay.style.textShadow='none';}
+    else{overlay.style.background='none';overlay.style.padding='0';overlay.style.borderRadius='0';
+      overlay.style.textShadow=p.shadow||'0 0 4px rgba(0,0,0,.9),0 2px 6px rgba(0,0,0,.8),0 0 2px #000';}
+  }
+  const pw=$('#playerWrap');
+  overlay.style.fontSize=Math.max(12,pw.clientHeight/17*(state.subStyle.size/100))+'px';
+  }catch(e){/* 单帧异常不中断循环 */}
+})();
+
+/* ---------- SRT 导入 ---------- */
+function parseSRT(txt){
+  const out=[];const blocks=txt.replace(/\r/g,'').split(/\n\s*\n/);
+  for(const b of blocks){
+    const lines=b.split('\n').filter(l=>l.trim()!=='');
+    if(!lines.length)continue;
+    let li=0;
+    if(/^\d+$/.test(lines[0].trim()))li=1; // 可选的序号行
+    if(li>=lines.length)continue;
+    const m=lines[li].match(/(\d{1,2}):(\d{2}):(\d{2})[,.](\d{1,3})\s*-->\s*(\d{1,2}):(\d{2}):(\d{2})[,.](\d{1,3})/);
+    if(!m)continue;
+    const toS=(h,mi,s,ms)=>(+h)*3600+(+mi)*60+(+s)+(+ms.padEnd(3,'0'))/1000;
+    const text=lines.slice(li+1).join('\n').trim();
+    if(text)out.push({start:toS(m[1],m[2],m[3],m[4]),end:toS(m[5],m[6],m[7],m[8]),text:text.replace(/<[^>]+>/g,'')});
+  }
+  return out;
+}
+$('#btnSubImport').onclick=()=>{if(!state.duration){toast('请先载入视频');return;}$('#srtFile').click();};
+$('#srtFile').onchange=e=>{
+  const f=e.target.files[0];if(!f)return;e.target.value='';
+  const rd=new FileReader();
+  rd.onload=()=>{
+    try{
+      const items=parseSRT(String(rd.result));
+      if(!items.length){toast('没有解析到有效字幕（需要标准 SRT：时间行 --> 时间行 + 文本）');return;}
+      const apply=()=>{
+        state.subs=items.map(it=>({id:uid(),start:it.start,end:it.end,text:it.text}));
+        state.subs.sort((a,b)=>a.start-b.start);
+        renderTimeline();renderSubList();save();
+        toast('已导入 '+items.length+' 条字幕');
+      };
+      if(state.subs.length){
+        if(confirm('已有 '+state.subs.length+' 条字幕，导入 SRT 将覆盖它们。继续？'))apply();
+      }else apply();
+    }catch(err){toast('SRT 文件读取失败：'+err.message);}
+  };
+  rd.readAsText(f,'utf-8');
+};
+
+/* ---------- transport ---------- */
+function togglePlay(){
+  if(!state.duration)return;
+  // 关键：音频引擎必须在“用户点击手势”内启动并恢复。
+  // 若等到 play 事件（手势已失效）才创建，AudioContext 会是 suspended，
+  // 视频声音接入挂起的引擎后画面也会跟着卡住。
+  ensureCtx();
+  try{actx.resume()}catch(e){}
+  if(video.paused){
+    const p=video.play();
+    if(p&&p.catch)p.catch(()=>toast('播放被浏览器拦截：请再点一次播放按钮，或在独立标签页打开本工具',4200));
+  }
+  else video.pause();
+}
+$('#btnPlay').onclick=togglePlay;
+video.onplay=()=>$('#btnPlay').textContent='⏸ 暂停';
+video.onpause=()=>$('#btnPlay').textContent='▶ 播放';
+document.addEventListener('keydown',e=>{
+  if(e.code==='Space'&&!/INPUT|TEXTAREA|SELECT/.test(e.target.tagName)&&!$('#modalMask').classList.contains('show')&&!$('#helpMask').classList.contains('show')){e.preventDefault();togglePlay();}
+});
+/* ---------- 预览实时混音：播放时听到配音/旁白/背景音乐，画面与声音联动 ---------- */
+let previewNodes=[],previewGain=null,previewAnchor=null;
+function stopPreviewAudio(){
+  previewNodes.forEach(s=>{try{s.stop()}catch(e){}});
+  previewNodes=[];previewAnchor=null;
+}
+function startPreviewAudio(){
+  stopPreviewAudio();
+  if(state.exporting||!state.duration)return;
+  ensureCtx();
+  if(actx.state!=='running'){try{actx.resume()}catch(e){}}
+  // 关键设计：视频原声始终走 <video> 元素自身的输出，不经过 WebAudio 图。
+  // 即使音频引擎被浏览器挂起，画面与原声也永远不会被卡住——
+  // 配音/旁白/音乐只是叠加，引擎未就绪时最多暂时听不到它们。
+  if(!previewGain)previewGain=actx.createGain();
+  try{previewGain.disconnect()}catch(e){}
+  previewGain.connect(actx.destination);
+  const t=video.currentTime;
+  previewAnchor={videoT:t,actxT:actx.currentTime};
+  activeNarrs().forEach(n=>{
+    const s=actx.createBufferSource();s.buffer=n.buffer;s.connect(previewGain);
+    const delay=n.start-t;
+    if(delay>=0)s.start(actx.currentTime+delay);
+    else if(-delay<n.buffer.duration)s.start(actx.currentTime,-delay);
+    previewNodes.push(s);
+  });
+  if(state.bgm){
+    const s=actx.createBufferSource();s.buffer=state.bgm.buffer;s.loop=true;
+    const g=actx.createGain();
+    g.gain.setValueAtTime(state.bgmVol,actx.currentTime);
+    const remain=Math.max(0,state.duration-t);
+    if(remain>2.5){ // 接近结尾时淡出，与导出行为一致
+      g.gain.setValueAtTime(state.bgmVol,actx.currentTime+remain-2.5);
+      g.gain.linearRampToValueAtTime(0.0001,actx.currentTime+remain-0.3);
+    }
+    s.connect(g).connect(previewGain);
+    s.start(actx.currentTime,t%state.bgm.buffer.duration);
+    previewNodes.push(s);
+  }
+}
+// 引擎保活：任何点击/触摸（包括拖时间轴定位）的瞬间都确保音频引擎在运行
+document.addEventListener('pointerdown',()=>{if(!state.exporting){ensureCtx();try{actx.resume()}catch(e){}}},true);
+// 双保险巡检：音频引擎挂起 + 视频在播 → 每 500ms 尝试唤醒
+setInterval(()=>{
+  if(state.exporting||!actx||actx.state==='running')return;
+  if(!video.paused){try{actx.resume()}catch(e){}}
+},500);
+// 画面停滞巡检：连续约 2 秒 currentTime 没有前进（且不在 seek/缓冲）→ 自动重试播放
+let lastCT=-1,stallCnt=0;
+setInterval(()=>{
+  if(state.exporting||video.paused||!state.duration){stallCnt=0;return;}
+  if(video.seeking||video.readyState<3){stallCnt=0;lastCT=video.currentTime;return;}
+  const t=video.currentTime;
+  if(Math.abs(t-lastCT)<0.02)stallCnt++;else stallCnt=0;
+  lastCT=t;
+  if(stallCnt>=3){
+    stallCnt=0;
+    if(actx&&actx.state!=='running'){try{actx.resume()}catch(e){}}
+    const p=video.play();if(p&&p.catch)p.catch(()=>{});
+  }
+},700);
+// 同步校准：视频因缓冲/卡顿落后或超前于声音超过 0.3s 时，按画面重新对位
+// 定位（seeking）与缓冲（readyState 不足）期间不校准，避免误判
+video.addEventListener('timeupdate',()=>{
+  if(video.paused||state.exporting||!previewAnchor||!previewNodes.length)return;
+  if(video.seeking||video.readyState<3)return;
+  const expect=previewAnchor.videoT+(actx.currentTime-previewAnchor.actxT);
+  if(Math.abs(video.currentTime-expect)>0.3)startPreviewAudio();
+});
+// 画面停滞看门狗：播放请求发出后 600ms 画面仍未走，自动重试播放
+let stallTimer=null;
+video.addEventListener('playing',()=>{
+  clearTimeout(stallTimer);
+  const t0=video.currentTime;
+  stallTimer=setTimeout(()=>{
+    if(state.exporting||video.paused||video.seeking)return;
+    if(video.readyState>=3&&Math.abs(video.currentTime-t0)<0.05){
+      ensureCtx();try{actx.resume()}catch(e){}
+      const p=video.play();if(p&&p.catch)p.catch(()=>{});
+      toast('检测到画面停滞，已尝试恢复播放',3200);
+    }
+  },600);
+});
+video.addEventListener('play',startPreviewAudio);
+video.addEventListener('pause',stopPreviewAudio);
+video.addEventListener('ended',stopPreviewAudio);
+video.addEventListener('seeked',()=>{video.paused?stopPreviewAudio():startPreviewAudio();});
+// 画面跟随配音：从某段配音的位置开始预览
+function previewAt(t){
+  if(!state.duration)return;
+  ensureCtx();
+  try{actx.resume()}catch(e){} // 试听也是点击手势，顺手把引擎唤醒
+  t=Math.min(Math.max(0,t),Math.max(0,state.duration-0.05));
+  video.currentTime=t;
+  if(video.paused){
+    const p=video.play();
+    if(p&&p.catch)p.catch(()=>toast('播放被浏览器拦截：请再点一次「▶ 试听」',3600));
+  }
+}
+function refreshPreviewAudio(){if(!video.paused)startPreviewAudio();}
+
+function jumpSub(dir){
+  const t=video.currentTime;
+  const times=state.subs.map(s=>s.start).sort((a,b)=>a-b);
+  const next=dir>0?times.find(x=>x>t+0.05):[...times].reverse().find(x=>x<t-0.05);
+  if(next!==undefined)video.currentTime=next;
+}
+$('#btnPrevSub').onclick=()=>jumpSub(-1);
+$('#btnNextSub').onclick=()=>jumpSub(1);
+
+/* ---------- timeline ---------- */
+tlTrack.addEventListener('pointerdown',e=>{
+  if(e.target.classList.contains('blk')||e.target.classList.contains('nblk')||!state.duration)return;
+  const r=tlTrack.getBoundingClientRect();
+  video.currentTime=Math.min(Math.max(0,(e.clientX-r.left)/r.width*state.duration),state.duration);
+});
+function makeBlock(obj,kind){
+  const el=document.createElement('div');
+  el.className=kind==='s'?'blk'+(state.sel===obj.id?' sel':''):'nblk';
+  const len=kind==='s'?(obj.end-obj.start):obj.dur;
+  el.style.left=(obj.start/state.duration*100)+'%';
+  el.style.width=Math.max(0.6,len/state.duration*100)+'%';
+  el.textContent=(kind==='s'?'💬 ':'🎙 ')+trunc(kind==='s'?obj.text:obj.name,26);
+  el.title=fmt(obj.start)+(kind==='s'?' ~ '+fmt(obj.end):'（旁白 '+fmt(obj.dur)+'）');
+    el.addEventListener('pointerdown',e=>{
+      e.stopPropagation();
+      if(kind==='s'){state.sel=obj.id;renderTimeline();renderSubList();}
+      const r=tlTrack.getBoundingClientRect(),w=r.width,sx=e.clientX,os=obj.start;
+      let moved=false;
+      const move=ev=>{
+        if(Math.abs(ev.clientX-sx)>3)moved=true;
+        let ns=os+(ev.clientX-sx)/w*state.duration;
+        ns=Math.min(Math.max(0,ns),state.duration-len);
+        obj.start=ns;if(kind==='s')obj.end=ns+len;
+        renderTimeline();
+      };
+      const up=()=>{window.removeEventListener('pointermove',move);window.removeEventListener('pointerup',up);if(kind==='s')renderSubList();save();if(kind==='n')refreshPreviewAudio();};
+      window.addEventListener('pointermove',move);window.addEventListener('pointerup',up);
+      el.addEventListener('pointerup',()=>{if(kind==='n'&&!moved)previewAt(obj.start);},{once:true});
+    });
+  tlTrack.appendChild(el);
+}
+function renderTimeline(){
+  tlTrack.querySelectorAll('.blk,.nblk').forEach(n=>n.remove());
+  if(!state.duration)return;
+  state.subs.forEach(s=>makeBlock(s,'s'));
+  activeNarrs().forEach(n=>makeBlock(n,'n'));
+}
+
+/* ---------- subtitle CRUD ---------- */
+$('#btnAddSub').onclick=()=>{
+  if(!state.duration)return;
+  const t=video.currentTime;
+  const sub={id:uid(),start:t,end:Math.min(t+3,state.duration),text:''};
+  state.subs.push(sub);state.subs.sort((a,b)=>a.start-b.start);
+  state.sel=sub.id;renderTimeline();renderSubList();
+  const rows=$('#subList').querySelectorAll('.subrow');
+  const row=[...rows].find(r=>+r.dataset.id===sub.id);
+  if(row){row.querySelector('.txt').focus();}
+  save();
+};
+function renderSubList(){
+  const box=$('#subList');box.innerHTML='';
+  if(!state.subs.length){box.innerHTML='<div style="color:var(--dim);padding:14px;font-size:13px">还没有字幕。播放到想要的位置，点「＋ 在当前画面插入字幕」。</div>';return;}
+  state.subs.forEach((s,i)=>{
+    const row=document.createElement('div');
+    row.className='subrow'+(state.sel===s.id?' sel':'');row.dataset.id=s.id;
+    row.innerHTML=`<span class="idx">${i+1}</span>
+      <input type="number" step="0.1" class="t-in" value="${s.start.toFixed(1)}" title="开始（秒）">
+      <input type="number" step="0.1" class="t-out" value="${s.end.toFixed(1)}" title="结束（秒）">
+      <input type="text" class="txt" value="${s.text.replace(/"/g,'&quot;')}" placeholder="输入字幕文本…">
+      <button class="btn sm" title="定位到这句">⌖</button>
+      <button class="btn sm" title="TTS 试听">🔊</button>
+      <button class="btn sm" title="删除">✕</button>`;
+    row.addEventListener('pointerdown',()=>{if(state.sel!==s.id){state.sel=s.id;renderTimeline();renderSubList();}});
+    const [tin,tout,txt]=row.querySelectorAll('input');
+    tin.onchange=()=>{s.start=Math.min(Math.max(0,+tin.value||0),s.end-0.2);tin.value=s.start.toFixed(1);renderTimeline();save();};
+    tout.onchange=()=>{s.end=Math.max(s.start+0.2,Math.min(+tout.value||s.start+0.2,state.duration));tout.value=s.end.toFixed(1);renderTimeline();save();};
+    txt.oninput=()=>{s.text=txt.value;save();};
+    row.querySelectorAll('button')[0].onclick=()=>{video.currentTime=s.start;};
+    row.querySelectorAll('button')[1].onclick=()=>speak(s.text||'（这句还没有文字）');
+    row.querySelectorAll('button')[2].onclick=()=>{state.subs=state.subs.filter(x=>x!==s);if(state.sel===s.id)state.sel=null;renderTimeline();renderSubList();save();};
+    box.appendChild(row);
+  });
+}
+
+/* ---------- TTS ---------- */
+function loadVoices(){
+  const vs=speechSynthesis.getVoices();if(!vs.length)return;
+  state.voices=vs;const sel=$('#voiceSel');sel.innerHTML='';
+  const zh=vs.filter(v=>/^zh|cmn|yue/i.test(v.lang));
+  [...zh,...vs.filter(v=>!zh.includes(v))].forEach(v=>{
+    const o=document.createElement('option');o.value=v.voiceURI;o.textContent=v.name+' ('+v.lang+')';sel.appendChild(o);
+  });
+  if(zh.length)sel.value=zh[0].voiceURI;
+  state.voiceURI=sel.value;
+}
+speechSynthesis.onvoiceschanged=loadVoices;loadVoices();
+$('#voiceSel').onchange=e=>state.voiceURI=e.target.value;
+$('#rateSel').onchange=e=>state.rate=+e.target.value;
+function speak(text){
+  if(!text)return null;
+  speechSynthesis.cancel();
+  const u=new SpeechSynthesisUtterance(text);
+  const v=state.voices.find(v=>v.voiceURI===state.voiceURI);
+  if(v){u.voice=v;u.lang=v.lang;}else u.lang='zh-CN';
+  u.rate=state.rate;speechSynthesis.speak(u);return u;
+}
+$('#btnTTSView').onclick=()=>{
+  const s=state.subs.find(x=>x.id===state.sel)||activeSub(video.currentTime)||state.subs[0];
+  speak(s?s.text||'（这句还没有文字）':'还没有字幕');
+};
+async function renderTTSNarrs(){
+  const subs=[...state.subs].filter(s=>s.text.trim()).sort((a,b)=>a.start-b.start);
+  if(!subs.length){toast('还没有带文字的字幕');return false;}
+  if(state.narrs.length&&!confirm('已存在配音，继续生成会追加重复的音频。确定继续吗？'))return false;
+  const voice=$('#aiVoiceSel').value,rate=$('#aiRateSel').value;
+  ensureCtx();try{await actx.resume()}catch(e){}
+  showModal('正在生成配音（'+subs.length+' 句）','优先使用本地配音助手，无需录音无需联网…',false);
+  const made=[];let fails=0;
+  for(let i=0;i<subs.length;i++){
+    setModal('配音 '+(i+1)+'/'+subs.length+'：'+trunc(subs[i].text,20),i/subs.length);
+    try{
+      const buf=await edgeTTS(subs[i].text,voice,rate);
+      made.push({id:uid(),start:subs[i].start,buffer:buf,dur:buf.duration,name:'配音·'+trunc(subs[i].text,10),src:'tts'});
+    }catch(e){fails++;}
+  }
+  hideModal();
+  if(made.length){
+    state.narrs.push(...made);renderTimeline();renderNarrList();refreshPreviewAudio();
+    toast('完成：'+made.length+' 句配音已铺到字幕起点'+(fails?'（'+fails+' 句失败）':''),5200);
+    return true;
+  }
+  toast('配音失败。最可靠的方式：双击工具所在文件夹里的「启动配音服务.bat」启动本地配音助手（窗口保持开着），再回来点一次；也可以用「📂 导入配音音频文件」导入已生成的音频',9000);
+  return false;
+}
+$('#btnTTSRender').onclick=()=>renderTTSNarrs();
+
+/* ---------- AI dubbing (Edge online TTS) ---------- */
+const EDGE_TOKEN='6A5AA1D4EAFF4E9FB37E23D68491D6F4',EDGE_CHROMIUM='1-130.0.2849.68';
+function edgeGEC(){
+  // Sec-MS-GEC: sha256(token + ticks@100ns, rounded to 5min), uppercase hex
+  let sec=Math.floor(Date.now()/1000)+11644473600;
+  sec-=sec%300;
+  const ticks=String(BigInt(sec)*10000000n);
+  return sha256hex(EDGE_TOKEN+ticks);
+}
+function sha256hex(str){
+  // 纯 JS SHA-256（file:// 下 crypto.subtle 可能不可用，自带实现最稳）
+  const K=[0x428a2f98,0x71374491,0xb5c0fbcf,0xe9b5dba5,0x3956c25b,0x59f111f1,0x923f82a4,0xab1c5ed5,
+    0xd807aa98,0x12835b01,0x243185be,0x550c7dc3,0x72be5d74,0x80deb1fe,0x9bdc06a7,0xc19bf174,
+    0xe49b69c1,0xefbe4786,0x0fc19dc6,0x240ca1cc,0x2de92c6f,0x4a7484aa,0x5cb0a9dc,0x76f988da,
+    0x983e5152,0xa831c66d,0xb00327c8,0xbf597fc7,0xc6e00bf3,0xd5a79147,0x06ca6351,0x14292967,
+    0x27b70a85,0x2e1b2138,0x4d2c6dfc,0x53380d13,0x650a7354,0x766a0abb,0x81c2c92e,0x92722c85,
+    0xa2bfe8a1,0xa81a664b,0xc24b8b70,0xc76c51a3,0xd192e819,0xd6990624,0xf40e3585,0x106aa070,
+    0x19a4c116,0x1e376c08,0x2748774c,0x34b0bcb5,0x391c0cb3,0x4ed8aa4a,0x5b9cca4f,0x682e6ff3,
+    0x748f82ee,0x78a5636f,0x84c87814,0x8cc70208,0x90befffa,0xa4506ceb,0xbef9a3f7,0xc67178f2];
+  const bytes=[];let utf8=unescape(encodeURIComponent(str));
+  for(let i=0;i<utf8.length;i++)bytes.push(utf8.charCodeAt(i));
+  const bl=bytes.length*8;
+  bytes.push(0x80);
+  while(bytes.length%64!==56)bytes.push(0);
+  for(let i=7;i>=0;i--)bytes.push(Math.floor(bl/Math.pow(2,i*8))&255);
+  const H=[0x6a09e667,0xbb67ae85,0x3c6ef372,0xa54ff53a,0x510e527f,0x9b05688c,0x1f83d9ab,0x5be0cd19];
+  const w=new Array(64);
+  const rotr=(x,n)=>(x>>>n)|(x<<(32-n));
+  for(let off=0;off<bytes.length;off+=64){
+    for(let i=0;i<16;i++)w[i]=(bytes[off+i*4]<<24)|(bytes[off+i*4+1]<<16)|(bytes[off+i*4+2]<<8)|bytes[off+i*4+3];
+    for(let i=16;i<64;i++){
+      const s0=rotr(w[i-15],7)^rotr(w[i-15],18)^(w[i-15]>>>3);
+      const s1=rotr(w[i-2],17)^rotr(w[i-2],19)^(w[i-2]>>>10);
+      w[i]=(w[i-16]+s0+w[i-7]+s1)|0;
+    }
+    let[a,b,c,d,e,f,g,h]=H;
+    for(let i=0;i<64;i++){
+      const S1=rotr(e,6)^rotr(e,11)^rotr(e,25);
+      const ch=(e&f)^(~e&g);
+      const t1=(h+S1+ch+K[i]+w[i])|0;
+      const S0=rotr(a,2)^rotr(a,13)^rotr(a,22);
+      const maj=(a&b)^(a&c)^(b&c);
+      const t2=(S0+maj)|0;
+      h=g;g=f;f=e;e=(d+t1)|0;d=c;c=b;b=a;a=(t1+t2)|0;
+    }
+    [a,b,c,d,e,f,g,h].forEach((v,i)=>{H[i]=(H[i]+[a,b,c,d,e,f,g,h][i])|0;});
+  }
+  return H.map(x=>('00000000'+(x>>>0).toString(16)).slice(-8)).join('').toUpperCase();
+}
+/* ---------- 本地配音助手通道（优先）：http://127.0.0.1:8765 由「配音助手」提供 ---------- */
+const TTS_SERVER='http://127.0.0.1:8765';
+let ttsServerOK=null; // null=未知 true=在线 false=离线
+async function pingServer(){
+  if(ttsServerOK!==null)return ttsServerOK;
+  try{
+    const ctl=new AbortController();const t=setTimeout(()=>ctl.abort(),1500);
+    const r=await fetch(TTS_SERVER+'/ping',{signal:ctl.signal});
+    clearTimeout(t);ttsServerOK=r.ok;
+  }catch(e){ttsServerOK=false;}
+  return ttsServerOK;
+}
+async function serverTTS(text,voice,rate){
+  const r=await fetch(TTS_SERVER+'/tts?text='+encodeURIComponent(text)+'&voice='+encodeURIComponent(voice)+'&rate='+encodeURIComponent(rate));
+  if(!r.ok)throw new Error('配音助手返回 '+r.status);
+  ensureCtx();
+  return await actx.decodeAudioData(await r.arrayBuffer());
+}
+// 统一入口：本地助手优先（秒级、稳定），失败自动降级浏览器直连微软（需联网）
+async function edgeTTS(text,voice,rate){
+  if(await pingServer()){
+    try{return await serverTTS(text,voice,rate);}
+    catch(e){toast('配音助手异常：'+e.message+'，改用网络通道…',3200);}
+  }
+  try{
+    const buf=await edgeWS(text,voice,rate);
+    return buf;
+  }catch(e){
+    ttsServerOK=null; // 下次重试 ping（用户可能刚启动助手）
+    throw new Error(e.message+' —— 推荐启动「字幕工坊配音助手」：双击工具文件夹里的 启动配音服务.bat，窗口保持开着即可');
+  }
+}
+function edgeWS(text,voice,rate){
+  return new Promise((res,rej)=>{
+    const cid=[...crypto.getRandomValues(new Uint8Array(16))].map(b=>('0'+b.toString(16)).slice(-2)).join('');
+    let ws;
+    try{
+      ws=new WebSocket('wss://speech.platform.bing.com/consumer/speech/synthesize/readaloud/edge/v1?'+
+        'TrustedClientToken='+EDGE_TOKEN+'&Sec-MS-GEC='+edgeGEC()+'&Sec-MS-GEC-Version='+EDGE_CHROMIUM+'&ConnectionId='+cid);
+    }catch(e){rej(new Error('无法建立语音连接：'+e.message));return;}
+    ws.binaryType='arraybuffer';
+    const chunks=[];let ok=false;
+    const fail=m=>{try{ws.close()}catch(e){};rej(new Error(m));};
+    const timer=setTimeout(()=>fail('合成超时（请检查网络）'),25000);
+    const esc=text.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    ws.onopen=()=>{
+      const now=new Date().toString();
+      ws.send('X-Timestamp:'+now+'\r\nContent-Type:application/json; charset=utf-8\r\nPath: speech.config\r\n\r\n'+
+        '{"context":{"synthesis":{"audio":{"metadataoptions":{"sentenceBoundaryEnabled":"false","wordBoundaryEnabled":"false"},'+
+        '"outputFormat":"audio-24khz-48kbitrate-mono-mp3"}}}}');
+      const rid=[...crypto.getRandomValues(new Uint8Array(16))].map(b=>('0'+b.toString(16)).slice(-2)).join('');
+      ws.send('X-RequestId:'+rid+'\r\nContent-Type:application/ssml+xml\r\nX-Timestamp:'+now+'\r\nPath: ssml\r\n\r\n'+
+        "<speak version='1.0' xmlns='http://www.w3.org/2001/10/synthesis' xml:lang='zh-CN'><voice name='"+voice+
+        "'><prosody pitch='+0Hz' rate='"+rate+"' volume='+0%'>"+esc+'</prosody></voice></speak>');
+    };
+    ws.onmessage=ev=>{
+      if(typeof ev.data==='string'){
+        if(ev.data.includes('Path:turn.end')){
+          clearTimeout(timer);ok=true;ws.close();
+          ensureCtx();
+          const blob=new Blob(chunks,{type:'audio/mp3'});
+          actx.decodeAudioData(blob.arrayBuffer()).then(res).catch(e=>rej(new Error('音频解码失败')));
+        }
+        if(ev.data.includes('Path:turn.error'))fail('语音服务返回错误');
+      }else{
+        try{
+          const dv=new DataView(ev.data);
+          const hl=dv.getUint16(0);
+          const head=new TextDecoder().decode(new Uint8Array(ev.data,2,hl));
+          if(head.includes('Path:audio'))chunks.push(new Uint8Array(ev.data,2+hl));
+        }catch(e){}
+      }
+    };
+    ws.onerror=()=>{if(!ok){clearTimeout(timer);fail('语音服务连接失败（请检查网络）');}};
+    ws.onclose=()=>{clearTimeout(timer);if(!ok)fail('连接被关闭');};
+  });
+}
+async function renderAINarrs(){
+  const subs=[...state.subs].filter(s=>s.text.trim()).sort((a,b)=>a.start-b.start);
+  if(!subs.length){toast('还没有带文字的字幕');return false;}
+  if(state.narrs.length&&!confirm('已存在配音，继续会追加重复的音频。确定继续吗？'))return false;
+  const voice=$('#aiVoiceSel').value,rate=$('#aiRateSel').value;
+  ensureCtx();try{await actx.resume()}catch(e){}
+  showModal('AI 配音中（'+subs.length+' 句）','正在连接微软语音引擎，请保持联网…',false);
+  const made=[];let fails=0;
+  for(let i=0;i<subs.length;i++){
+    setModal('AI 配音 '+(i+1)+'/'+subs.length+'：'+trunc(subs[i].text,20),i/subs.length);
+    try{
+      const buf=await edgeTTS(subs[i].text,voice,rate);
+      made.push({id:uid(),start:subs[i].start,buffer:buf,dur:buf.duration,name:'AI·'+trunc(subs[i].text,10),src:'ai'});
+    }catch(e){fails++;}
+  }
+  hideModal();
+  if(made.length){
+    state.narrs.push(...made);renderTimeline();renderNarrList();refreshPreviewAudio();
+    toast('完成：'+made.length+' 句 AI 配音已铺到字幕起点'+(fails?'（'+fails+' 句失败）':''),5200);
+    return true;
+  }
+  toast('AI 配音失败：'+(fails?'双通道都不通。请启动「本地配音助手」——双击工具文件夹里的 启动配音服务.bat（窗口保持开着），再重试；或用「📂 导入配音文件」':'请检查网络连接'),9000);
+  return false;
+}
+$('#btnAIRender').onclick=()=>renderAINarrs();
+$('#btnAIView').onclick=async()=>{
+  const s=state.subs.find(x=>x.id===state.sel)||activeSub(video.currentTime)||state.subs[0];
+  if(!s||!s.text.trim()){toast('还没有字幕文字');return;}
+  try{
+    const buf=await edgeTTS(s.text,$('#aiVoiceSel').value,$('#aiRateSel').value);
+    const c=ensureCtx();const src=c.createBufferSource();src.buffer=buf;src.connect(c.destination);src.start();
+  }catch(e){toast('AI 试听失败：'+e.message,4600);}
+};
+
+/* ---------- narration (mic) ---------- */
+$('#btnMic').onclick=async()=>{
+  if(state.rec){stopMic();return;}
+  try{state.micStream=await navigator.mediaDevices.getUserMedia({audio:true});}
+  catch(e){toast('无法访问麦克风：请检查浏览器权限');return;}
+  ensureCtx();
+  state.recStart=video.currentTime;
+  const mime=MediaRecorder.isTypeSupported('audio/webm;codecs=opus')?'audio/webm;codecs=opus':'audio/webm';
+  const rec=new MediaRecorder(new MediaStream(state.micStream.getAudioTracks()),{mimeType:mime});
+  const chunks=[];rec.ondataavailable=e=>{if(e.data.size)chunks.push(e.data);};
+  rec.onstop=async()=>{
+    try{
+      const ab=await new Blob(chunks,{type:mime}).arrayBuffer();
+      const buf=await ensureCtx().decodeAudioData(ab);
+      state.narrs.push({id:uid(),start:state.recStart,buffer:buf,dur:buf.duration,name:'旁白 '+fmt(state.recStart),src:'mic'});
+      renderTimeline();renderNarrList();refreshPreviewAudio();toast('旁白已录入并挂到 '+fmt(state.recStart));
+    }catch(e){toast('录音解码失败');}
+  };
+  rec.start();state.rec=rec;
+  $('#btnMic').textContent='■ 停止录音';$('#btnMic').classList.add('rec');
+  $('#micState').textContent='录制中… 从 '+fmt(state.recStart)+' 开始';
+};
+function stopMic(){
+  try{state.rec.stop()}catch(e){}
+  state.rec=null;state.micStream.getTracks().forEach(t=>t.stop());state.micStream=null;
+  $('#btnMic').textContent='● 从当前时刻开始录制';$('#btnMic').classList.remove('rec');
+  $('#micState').textContent='';
+}
+/* ---------- 成片配音选择：按来源过滤预览与导出使用的配音 ---------- */
+const NARR_SRC={tts:'TTS配音',ai:'AI配音',import:'导入文件',mic:'录音'};
+const SRC_ICON={tts:'🎙',ai:'🤖',import:'📂',mic:'🎤'};
+function activeNarrs(){
+  if(state.narrPick==='all')return state.narrs;
+  return state.narrs.filter(n=>(n.src||'import')===state.narrPick);
+}
+function renderNarrPick(){
+  const sel=$('#narrPickSel'),hint=$('#narrPickHint');
+  const cnt={};state.narrs.forEach(n=>{const k=n.src||'import';cnt[k]=(cnt[k]||0)+1;});
+  [...sel.options].forEach(o=>{if(o.value!=='all')o.disabled=!cnt[o.value];});
+  if(state.narrPick!=='all'&&!cnt[state.narrPick]){
+    toast('所选配音途径已没有音频，已切回「全部配音」',3200);state.narrPick='all';sel.value='all';
+  }
+  if(!state.narrs.length){hint.textContent='当前未生成任何配音。生成或导入配音后，这里会自动显示各途径的数量；选中某一路后，预览和导出成片只使用该路的配音。';return;}
+  const parts=Object.keys(cnt).map(k=>(SRC_ICON[k]||'')+' '+(NARR_SRC[k]||k)+' ×'+cnt[k]);
+  hint.textContent='已有配音：'+parts.join('　')+'。预览与导出成片使用「'+(state.narrPick==='all'?'全部配音':(NARR_SRC[state.narrPick]||state.narrPick))+'」共 '+activeNarrs().length+' 条。';
+}
+$('#narrPickSel').onchange=e=>{
+  state.narrPick=e.target.value;
+  try{localStorage.setItem('zmgfNarrPick',state.narrPick);}catch(err){}
+  renderNarrPick();renderTimeline();renderNarrList();refreshPreviewAudio();
+};
+try{const saved=localStorage.getItem('zmgfNarrPick');if(saved){state.narrPick=saved;$('#narrPickSel').value=saved;}}catch(err){}
+
+function renderNarrList(){
+  renderNarrPick();
+  const box=$('#narrList');box.innerHTML='';
+  if(!state.narrs.length)return;
+  state.narrs.forEach(n=>{
+    const src=n.src||'import';
+    const row=document.createElement('div');row.className='nrow';
+    const dim=state.narrPick!=='all'&&state.narrPick!==src;
+    row.style.opacity=dim?'0.45':'1';
+    row.innerHTML=`<span class="nm">${SRC_ICON[src]||'🎙'} [${NARR_SRC[src]||'配音'}] ${n.name}${dim?'（未选用）':''}</span>
+      <input type="number" class="tm" value="${n.start.toFixed(1)}" step="0.1" style="width:70px" title="起始时刻（秒）">
+      <button class="btn sm" title="试听">▶</button><button class="btn sm" title="删除">✕</button>`;
+    row.querySelector('input').onchange=e=>{n.start=Math.min(Math.max(0,+e.target.value||0),state.duration);e.target.value=n.start.toFixed(1);renderTimeline();refreshPreviewAudio();};
+    row.querySelectorAll('button')[0].onclick=()=>previewAt(n.start);
+    row.querySelectorAll('button')[1].onclick=()=>{state.narrs=state.narrs.filter(x=>x!==n);renderTimeline();renderNarrList();refreshPreviewAudio();};
+    box.appendChild(row);
+  });
+}
+
+/* ---------- narration file import ---------- */
+$('#btnNarrImport').onclick=()=>$('#fileNarr').click();
+$('#fileNarr').onchange=async e=>{
+  const files=[...e.target.files];if(!files.length)return;
+  ensureCtx();try{await actx.resume()}catch(err){}
+  let ok=0,auto=0;
+  for(const f of files){
+    try{
+      const ab=await f.arrayBuffer();
+      const buf=await actx.decodeAudioData(ab);
+      const m=f.name.match(/^(\d+(?:\.\d+)?)/);
+      const start=m?Math.min(+m[1],Math.max(0,state.duration)):video.currentTime;
+      if(m)auto++;
+      state.narrs.push({id:uid(),start,buffer:buf,dur:buf.duration,name:f.name.replace(/\.[^.]+$/,''),src:'import'});
+      ok++;
+    }catch(err){}
+  }
+  e.target.value='';
+  if(ok){renderTimeline();renderNarrList();refreshPreviewAudio();toast('已导入 '+ok+' 段配音'+(auto?'（'+auto+' 段按文件名秒数自动定位）':'（放在当前播放位置）'));video.currentTime=video.currentTime;}
+  else toast('没有可解码的音频文件（支持 wav/mp3/m4a/webm/ogg）',5200);
+};
+
+/* ---------- BGM ---------- */
+$('#btnBgm').onclick=()=>$('#fileBgm').click();
+$('#fileBgm').onchange=async e=>{
+  const f=e.target.files[0];if(!f)return;
+  try{
+    const ab=await f.arrayBuffer();
+    const buf=await ensureCtx().decodeAudioData(ab);
+    state.bgm={buffer:buf,name:f.name};
+    $('#bgmName').textContent=f.name+'（'+fmt(buf.duration)+'）';
+    $('#bgmCtl').style.display='flex';
+    toast('背景音乐已添加');refreshPreviewAudio();
+  }catch(e){toast('音频解码失败，请换一个文件');}
+};
+$('#bgmVol').oninput=e=>{state.bgmVol=e.target.value/100;refreshPreviewAudio();};
+$('#btnBgmDel').onclick=()=>{state.bgm=null;$('#bgmName').textContent='未添加';$('#bgmCtl').style.display='none';refreshPreviewAudio();};
+
+/* ---------- export location management ---------- */
+let dirHandles=[];      // [{name, handle}] 历史选过的文件夹
+let dirSelVal='download';
+function idb(){return new Promise((res,rej)=>{
+  const r=indexedDB.open('zmgf',1);
+  r.onupgradeneeded=()=>{if(!r.result.objectStoreNames.contains('kv'))r.result.createObjectStore('kv');};
+  r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error);
+});}
+async function idbSet(k,v){const db=await idb();return new Promise((res,rej)=>{
+  const tx=db.transaction('kv','readwrite');tx.objectStore('kv').put(v,k);
+  tx.oncomplete=res;tx.onerror=()=>rej(tx.error);});}
+async function idbGet(k){const db=await idb();return new Promise((res,rej)=>{
+  const tx=db.transaction('kv','readonly');const q=tx.objectStore('kv').get(k);
+  q.onsuccess=()=>res(q.result);q.onerror=()=>rej(q.error);});}
+function renderDirSel(){
+  const sel=$('#dirSel');sel.innerHTML='';
+  const mk=(v,t)=>{const o=document.createElement('option');o.value=v;o.textContent=t;sel.appendChild(o);};
+  mk('download','浏览器默认下载文件夹（Downloads）');
+  dirHandles.forEach((d,i)=>mk(String(i),'📁 '+d.name));
+  mk('browse','📂 浏览选择任意文件夹…');
+  mk('saveas','💾 每次导出时另存为（弹保存对话框）');
+  sel.value=(dirSelVal!=='browse'&&dirSelVal!=='saveas'&&dirSelVal!=='download'&&!isNaN(+dirSelVal)&&+dirSelVal<dirHandles.length)?dirSelVal:'download';
+}
+(async()=>{try{
+  const arr=await idbGet('dirHandles');
+  if(Array.isArray(arr))dirHandles=arr.filter(d=>d&&d.handle&&d.name);
+}catch(e){}renderDirSel();
+if(window.self!==window.top){
+  const d=document.createElement('div');d.className='hint';
+  d.textContent='⚠️ 当前在预览面板中运行，浏览器会限制“选择文件夹”弹窗。请双击本文件（字幕工坊.html）用浏览器直接打开，即可自由选择任意保存位置。';
+  $('#exportBar').insertBefore(d,$('#btnExport'));
+}})();
+$('#dirSel').onchange=async()=>{
+  const v=$('#dirSel').value;
+  if(v!=='browse'){dirSelVal=v;return;}
+  if(!window.showDirectoryPicker){toast('当前浏览器不支持自选保存位置（需新版 Chrome/Edge），将继续用默认下载文件夹',4600);renderDirSel();return;}
+  let h;try{h=await window.showDirectoryPicker({id:'zmgf-out'});}
+  catch(e){
+    renderDirSel();
+    if(e&&e.name!=='AbortError')toast('打开文件夹选择器失败（'+e.name+'）：预览面板中此功能受浏览器限制，请双击本文件用浏览器直接打开后再试',5600);
+    return;
+  }
+  let idx=dirHandles.findIndex(d=>d.name===h.name);
+  if(idx>=0)dirHandles[idx]={name:h.name,handle:h};
+  else{dirHandles.push({name:h.name,handle:h});idx=dirHandles.length-1;}
+  try{await idbSet('dirHandles',dirHandles);}catch(e){}
+  dirSelVal=String(idx);renderDirSel();
+  toast('导出将保存到「'+h.name+'」文件夹');
+};
+function addExpLog(name,sizeMB,where){
+  const box=$('#expList');
+  const d=document.createElement('div');d.className='explog';
+  d.innerHTML='✅ <b>'+name+'</b> · '+sizeMB+' MB · '+where;
+  box.prepend(d);
+}
+
+/* ---------- export ---------- */
+function pickMime(){
+  const cands=['video/mp4;codecs="avc1.64001F,mp4a.40.2"','video/mp4',
+    'video/webm;codecs=vp9,opus','video/webm;codecs=vp8,opus','video/webm'];
+  for(const c of cands)if(window.MediaRecorder&&MediaRecorder.isTypeSupported(c))return c;
+  return '';
+}
+function rr(c,x,y,w,h,r){c.beginPath();c.moveTo(x+r,y);c.arcTo(x+w,y,x+w,y+h,r);c.arcTo(x+w,y+h,x,y+h,r);c.arcTo(x,y+h,x,y,r);c.arcTo(x,y,x+w,y,r);c.closePath();}
+function drawSubs(c,W,H,t){
+  const s=activeSub(t);if(!s||!s.text.trim())return;
+  const p=SUB_PRESETS[state.subStyle.preset]||SUB_PRESETS.classic;
+  const fs=Math.round(H/20*(state.subStyle.size/100));
+  c.font='600 '+fs+'px "Microsoft YaHei","Noto Sans SC",sans-serif';
+  c.textAlign='center';c.textBaseline='alphabetic';
+  const maxW=W*0.86,lines=[];let line='';
+  for(const ch of s.text){
+    if(c.measureText(line+ch).width>maxW&&line){lines.push(line);line=ch;}else line+=ch;
+  }
+  if(line)lines.push(line);
+  const lh=fs*1.35,y0=H-H*0.06-(lines.length-1)*lh;
+  if(p.box){ // 半透明底条
+    let maxLw=0;lines.forEach(l=>{maxLw=Math.max(maxLw,c.measureText(l).width);});
+    const padX=fs*0.55,padY=fs*0.32,bx=W/2-maxLw/2-padX,by=y0-fs-padY,bw=maxLw+padX*2,bh=lines.length*lh+padY;
+    c.save();c.fillStyle=p.box;rr(c,bx,by,bw,bh,fs*0.35);c.fill();c.restore();
+  }
+  if(p.stroke){c.lineWidth=Math.max(2,fs*p.sw);c.strokeStyle=p.stroke;c.lineJoin='round';}
+  lines.forEach((ln,i)=>{
+    const y=y0+i*lh;
+    if(p.stroke)c.strokeText(ln,W/2,y);
+    c.fillStyle=p.fill;c.fillText(ln,W/2,y);
+  });
+}
+function askNoAudio(){
+  return new Promise(res=>{
+    const mask=document.createElement('div');mask.className='modalMask show';
+    mask.innerHTML='<div class="modal"><h4>这次导出将是无声的</h4>'+
+      '<div class="mtxt">当前没有配音、旁白，也没有背景音乐，导出的成片不会有任何声音。<br>要先给字幕配上声音吗？</div>'+
+      '<div class="row" style="justify-content:flex-end;gap:8px;flex-wrap:wrap">'+
+      '<button class="btn" id="_naC">取消</button>'+
+      '<button class="btn" id="_naS">仍要导出（无声）</button>'+
+      '<button class="btn" id="_naT">🎙 浏览器配音并导出</button>'+
+      '<button class="btn green" id="_naA">🤖 AI 配音并导出（需联网）</button></div></div>';
+    document.body.appendChild(mask);
+    const done=v=>{mask.remove();res(v);};
+    mask.querySelector('#_naC').onclick=()=>done('cancel');
+    mask.querySelector('#_naS').onclick=()=>done('export');
+    mask.querySelector('#_naT').onclick=()=>done('tts');
+    mask.querySelector('#_naA').onclick=()=>done('ai');
+  });
+}
+$('#btnExport').onclick=async()=>{
+  if(!state.duration){toast('请先载入视频');return;}
+  if(state.exporting)return;
+  if($('#chkKeepSub').checked&&state.narrs.length===0&&!state.bgm&&state.subs.some(s=>s.text.trim())){
+    const go=await askNoAudio();
+    if(go==='cancel')return;
+    if(go==='tts'){const ok=await renderTTSNarrs();if(!ok){toast('配音未生成，已取消导出');return;}}
+    if(go==='ai'){const ok=await renderAINarrs();if(!ok){toast('AI 配音未生成，已取消导出');return;}}
+  }
+  const mime=pickMime();
+  if(!mime){toast('当前浏览器不支持录制，请换用新版 Chrome / Edge');return;}
+  ensureCtx();
+  try{await actx.resume()}catch(e){}
+  if(actx.state!=='running'){await new Promise(r=>setTimeout(r,300));try{await actx.resume()}catch(e){}}
+  if(actx.state!=='running'){toast('音频引擎未能启动（浏览器自动播放策略限制）。请先点击页面任意位置/播放一下视频，再点导出',6400);return;}
+  state.exporting=true;state.cancelExport=false;
+  const w=video.videoWidth,h=video.videoHeight;
+  const sc=Math.min(1,1920/w);
+  const cw=Math.round(w*sc/2)*2,ch=Math.round(h*sc/2)*2;
+  const cv=$('#expCanvas');cv.width=cw;cv.height=ch;
+  const c2=cv.getContext('2d');
+  const vstream=cv.captureStream(30);
+  const dest=actx.createMediaStreamDestination();
+  const master=actx.createGain();
+  master.connect(dest);
+  // 视频原声：优先用 captureStream 抽取——不劫持 <video> 播放管线，
+  // 导出后预览绝不会因此卡画面/黑屏（旧方案的 MediaElementSource 只作兜底）
+  let usedFallback=false;
+  try{
+    const vs=video.captureStream?video.captureStream():(video.mozCaptureStream?video.mozCaptureStream():null);
+    if(vs&&vs.getAudioTracks().length){
+      actx.createMediaStreamSource(vs).connect(master);
+    }else throw new Error('captureStream 无音轨');
+  }catch(e){
+    usedFallback=true;
+    if(!vSource)vSource=actx.createMediaElementSource(video);
+    if(!vGain)vGain=actx.createGain();
+    try{vGain.disconnect()}catch(e2){}
+    vSource.connect(vGain);vGain.connect(master);
+    master.connect(actx.destination); // 兜底路径下原声只能经引擎出声
+  }
+  // 配音/旁白/音乐：进录制总线，同时进本机监听（兜底路径除外，避免原声重复）
+  const mixBus=actx.createGain();mixBus.connect(master);
+  if(!usedFallback)mixBus.connect(actx.destination);
+  const nodes=[];
+  if($('#chkKeepSub').checked){
+    activeNarrs().forEach(n=>{
+      const s=actx.createBufferSource();s.buffer=n.buffer;s.connect(mixBus);s.start(actx.currentTime+0.15+n.start);nodes.push(s);
+    });
+    if(state.bgm){
+      const s=actx.createBufferSource();s.buffer=state.bgm.buffer;s.loop=true;
+      const g=actx.createGain();
+      g.gain.setValueAtTime(state.bgmVol,actx.currentTime+0.15);
+      g.gain.setValueAtTime(state.bgmVol,actx.currentTime+0.15+Math.max(0,state.duration-2.5));
+      g.gain.linearRampToValueAtTime(0.0001,actx.currentTime+0.15+state.duration-0.3);
+      s.connect(g).connect(mixBus);s.start(actx.currentTime+0.15);nodes.push(s);
+    }
+  }
+  const tracks=[...vstream.getVideoTracks(),...dest.stream.getAudioTracks()];
+  // 实时混音监测：导出期间持续检查混音器里是否真的有信号
+  const ana=actx.createAnalyser();ana.fftSize=512;master.connect(ana);
+  const anaBuf=new Float32Array(ana.fftSize);
+  let silentMs=0;
+  const mon=setInterval(()=>{
+    try{
+      ana.getFloatTimeDomainData(anaBuf);
+      let p=0;for(let i=0;i<anaBuf.length;i++){const v=Math.abs(anaBuf[i]);if(v>p)p=v;}
+      if(p<0.001)silentMs+=400;else silentMs=0;
+      if(silentMs>=5000){silentMs=0;try{actx.resume()}catch(e){}
+        setModal('⚠️ 已监测 5 秒混音无信号，正在尝试恢复音频引擎… '+fmt(video.currentTime)+' / '+fmt(state.duration),video.currentTime/state.duration);}
+    }catch(e){}
+  },400);
+  const rec=new MediaRecorder(new MediaStream(tracks),{mimeType:mime,videoBitsPerSecond:8000000,audioBitsPerSecond:192000});
+  state.expRec=rec;
+  const chunks=[];rec.ondataavailable=e=>{if(e.data.size)chunks.push(e.data);};
+  const done=new Promise(r=>rec.onstop=r);
+  rec.start(1000);
+  video.currentTime=0;
+  try{await video.play()}catch(e){}
+  const burn=$('#chkBurn').checked;
+  let stopped=false;
+  const finish=async()=>{if(stopped)return;stopped=true;await sleep(400);try{rec.stop()}catch(e){}};
+  video.addEventListener('ended',finish,{once:true});
+  showModal('正在导出成片','实时录制中：请保持本页面在前台，勿切换标签页。',true);
+  (function draw(){
+    if(state.cancelExport||stopped)return;
+    requestAnimationFrame(draw);
+    c2.fillStyle='#000';c2.fillRect(0,0,cw,ch);
+    c2.drawImage(video,0,0,cw,ch);
+    if(burn)drawSubs(c2,cw,ch,video.currentTime);
+    setModal('实时录制中… '+fmt(video.currentTime)+' / '+fmt(state.duration),video.currentTime/state.duration);
+  })();
+  await done;
+  clearInterval(mon);
+  nodes.forEach(s=>{try{s.stop()}catch(e){}});
+  try{master.disconnect()}catch(e){}
+  try{mixBus.disconnect()}catch(e){}
+  if(usedFallback){try{vGain.disconnect()}catch(e){}vGain.connect(actx.destination); // 兜底路径恢复预览出声
+  }
+  video.pause();hideModal();state.exporting=false;state.expRec=null;
+  if(state.cancelExport){toast('已取消导出');return;}
+  const blob=new Blob(chunks,{type:mime});
+  const ext=mime.includes('mp4')?'mp4':'webm';
+  const base=$('#expName').value.trim()||((state.fileName||'video').replace(/\.[^.]+$/,'')+'-字幕配音版');
+  const fname=base+'.'+ext;
+  let where='浏览器默认下载文件夹',saved=false;
+  if(dirSelVal==='saveas'&&window.showSaveFilePicker){
+    try{
+      const types=ext==='mp4'
+        ?[{name:'MP4 视频',accept:{'video/mp4':['.mp4']}}]
+        :[{name:'WebM 视频',accept:{'video/webm':['.webm']}}];
+      const fh=await window.showSaveFilePicker({suggestedName:fname,types});
+      const ws=await fh.createWritable();
+      await ws.write(blob);await ws.close();
+      where='另存到：'+fh.name;saved=true;
+    }catch(e){
+      if(e&&e.name==='AbortError')toast('已取消另存，改为保存到默认下载文件夹');
+    }
+  }else{
+    const dh=(dirSelVal!=='download'&&dirSelVal!=='browse'&&dirSelVal!=='saveas'&&dirHandles[+dirSelVal])?dirHandles[+dirSelVal].handle:null;
+    if(dh){
+      try{
+        if(await dh.queryPermission({mode:'readwrite'})!=='granted')
+          await dh.requestPermission({mode:'readwrite'});
+        if(await dh.queryPermission({mode:'readwrite'})==='granted'){
+          const fh=await dh.getFileHandle(fname,{create:true});
+          const ws=await fh.createWritable();
+          await ws.write(blob);await ws.close();
+          where='「'+dh.name+'」文件夹';saved=true;
+        }
+      }catch(e){saved=false;}
+    }
+  }
+  if(!saved){
+    const a=document.createElement('a');
+    a.href=URL.createObjectURL(blob);a.download=fname;a.click();
+  }
+  addExpLog(fname,(blob.size/1048576).toFixed(1),where);
+  let audioOk=null;
+  try{
+    const ab=await blob.arrayBuffer();
+    const abuf=await actx.decodeAudioData(ab);
+    audioOk=bufRMS(abuf)>0.001;
+  }catch(e){audioOk=null;}
+  if(audioOk===false)toast('⚠️ 自检发现成片音轨是静音的！可能没有任何配音/旁白/音乐，或浏览器录制异常。请添加声音后重新导出；若已添加仍静音，请告诉我你的浏览器型号',9000);
+  else toast('导出完成：'+fname+'（'+(blob.size/1048576).toFixed(1)+' MB）已保存到'+where+(audioOk===true?'（音轨自检正常 ✓）':''),5600);
+};
+$('#mCancel').onclick=()=>{
+  state.cancelExport=true;
+  try{video.pause()}catch(e){}
+  try{state.expRec&&state.expRec.stop()}catch(e){}
+};
+
+/* ---------- modal / save ---------- */
+function showModal(title,text,cancellable){
+  $('#mTitle').textContent=title;$('#mText').textContent=text;
+  $('#mBar').style.width='0%';$('#mCancel').style.display=cancellable?'inline-block':'none';
+  $('#modalMask').classList.add('show');
+}
+function setModal(text,p){$('#mText').textContent=text;$('#mBar').style.width=Math.min(100,(p||0)*100)+'%';}
+function hideModal(){$('#modalMask').classList.remove('show');}
+
+/* ---------- 使用说明 ---------- */
+$('#btnHelp').onclick=()=>{$('#helpVer').textContent='字幕工坊 '+APP_VER+' · 本说明随版本更新';$('#helpMask').classList.add('show');};
+$('#helpClose').onclick=()=>$('#helpMask').classList.remove('show');
+$('#helpMask').addEventListener('click',e=>{if(e.target.id==='helpMask')$('#helpMask').classList.remove('show');});
+function save(){
+  if(!state.fileName)return;
+  try{localStorage.setItem('zmgf:'+state.fileName,JSON.stringify({subs:state.subs}));}catch(e){}
+  try{localStorage.setItem('zmgfStyle',JSON.stringify(state.subStyle));}catch(e){}
+}
+function restore(name){
+  try{
+    const d=JSON.parse(localStorage.getItem('zmgf:'+name)||'null');
+    if(d&&d.subs&&d.subs.length){state.subs=d.subs;toast('已恢复上次保存的 '+d.subs.length+' 条字幕');}
+  }catch(e){}
+  try{
+    const st=JSON.parse(localStorage.getItem('zmgfStyle')||'null');
+    if(st&&st.preset){state.subStyle=st;$('#subStyleSel').value=st.preset;$('#subSize').value=st.size||100;$('#subSizeVal').textContent=(st.size||100)+'%';curShown=null;}
+  }catch(e){}
+}
+
+/* ---------- subtitle export ---------- */
+function fmtTime(sec,srt){
+  sec=Math.max(0,sec);
+  const h=Math.floor(sec/3600),m=Math.floor(sec%3600/60),s=Math.floor(sec%60);
+  const ms=Math.round((sec-Math.floor(sec))*1000);
+  const p2=n=>String(n).padStart(2,'0');
+  return srt?(p2(h)+':'+p2(m)+':'+p2(s)+','+String(ms).padStart(3,'0'))
+            :(p2(m)+':'+p2(s));
+}
+function sortedSubs(){return [...state.subs].sort((a,b)=>a.start-b.start);}
+function buildSRT(){
+  return sortedSubs().map((s,i)=>
+    (i+1)+'\n'+fmtTime(s.start,true)+' --> '+fmtTime(s.end,true)+'\n'+s.text.trim()
+  ).join('\n\n')+'\n';
+}
+function buildTXT(){
+  return sortedSubs().map(s=>fmtTime(s.start,false)+'-'+fmtTime(s.end,false)+'  '+s.text.trim()).join('\n');
+}
+function downloadText(text,ext){
+  const base=(state.fileName||'video').replace(/\.[^.]+$/,'');
+  const blob=new Blob(['\ufeff'+text],{type:'text/plain;charset=utf-8'});
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download=base+'-字幕.'+ext;
+  a.click();
+  setTimeout(()=>URL.revokeObjectURL(a.href),4000);
+  toast('已导出：'+a.download);
+}
+$('#btnSubSRT').onclick=()=>{
+  if(!state.subs.length){toast('还没有字幕可导出');return;}
+  downloadText(buildSRT(),'srt');
+};
+$('#btnSubTXT').onclick=async()=>{
+  if(!state.subs.length){toast('还没有字幕可复制');return;}
+  const t=buildTXT();
+  try{await navigator.clipboard.writeText(t);toast('已复制 '+state.subs.length+' 句字幕文案到剪贴板（含时间码）');}
+  catch(e){
+    downloadText(t,'txt');
+    toast('剪贴板不可用，已改为下载纯文本文件');
+  }
+};
+</script>
+</body>
+</html>
